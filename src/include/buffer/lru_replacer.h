@@ -47,6 +47,8 @@ class LRUReplacer : public Replacer {
 
  private:
   // TODO(student): implement me!
+  std::mutex lru_mutex;
+  std::list<frame_id_t> unpinned_frames;
 };
 
 }  // namespace bustub

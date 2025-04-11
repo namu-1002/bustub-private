@@ -1,14 +1,14 @@
-//===----------------------------------------------------------------------===//
-//
-//                         BusTub
-//
-// lru_replacer.cpp
-//
-// Identification: src/buffer/lru_replacer.cpp
-//
-// Copyright (c) 2015-2019, Carnegie Mellon University Database Group
-//
-//===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//                                        
+//                                                                                                                      
+//                         BusTub                                                                                      
+//                                                                                                                      
+// lru_replacer.cpp                                                                                                    
+//                                                                                                                      
+// Identification: src/buffer/lru_replacer.cpp                                                                          
+//                                                                                                                      
+// Copyright (c) 2015-2019, Carnegie Mellon University Database Group                                                  
+//                                                                                                                      
+//===----------------------------------------------------------------------===//                                        
 
 #include "buffer/lru_replacer.h"
 
@@ -18,12 +18,48 @@ LRUReplacer::LRUReplacer(size_t num_pages) {}
 
 LRUReplacer::~LRUReplacer() = default;
 
-bool LRUReplacer::Victim(frame_id_t *frame_id) { return false; }
+bool LRUReplacer::Victim(frame_id_t *frame_id) {
+    lru_mutex.lock();
 
-void LRUReplacer::Pin(frame_id_t frame_id) {}
+    if (unpinned_frames.empty()) {
+         lru_mutex.unlock();
+         return false;
+    }
+    *frame_id = unpinned_frames.front();
+    unpinned_frames.pop_front();
 
-void LRUReplacer::Unpin(frame_id_t frame_id) {}
+    lru_mutex.unlock();
+    return true;
+}
 
-size_t LRUReplacer::Size() { return 0; }
+void LRUReplacer::Pin(frame_id_t frame_id) {
+    lru_mutex.lock();
+    for (auto it = unpinned_frames.begin(); it !=  unpinned_frames.end(); it++) {
+        if (*it == frame_id) {
+            unpinned_frames.erase(it);
+            break;
+        }
+    }
+    lru_mutex.unlock();
+}
+
+void LRUReplacer::Unpin(frame_id_t frame_id) {
+    lru_mutex.lock();
+    for (auto it = unpinned_frames.begin(); it != unpinned_frames.end(); ++it) {
+        if (*it == frame_id) {
+            lru_mutex.unlock();
+            return;
+        }
+    }
+    unpinned_frames.push_back(frame_id);
+    lru_mutex.unlock();
+}
+
+size_t LRUReplacer::Size() {
+    lru_mutex.lock();
+    size_t size = unpinned_frames.size();
+    lru_mutex.unlock();
+    return size;
+}
 
 }  // namespace bustub
